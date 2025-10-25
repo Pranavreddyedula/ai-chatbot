@@ -1,25 +1,16 @@
 [server]
 headless = true
-port = 10000           
-enableCORS = true      
+port = 10000
+enableCORS = true
 enableXsrfProtection = true
 
 [theme]
-base = "light"         
+base = "light"
 primaryColor = "#4CAF50"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F0F2F6"
 textColor = "#000000"
-font = "sans serif"    
+font = "sans serif"
 
 [client]
 showErrorDetails = true
-
-[global]
-gatherUsageStats = false 
-
-[ui]
-hideStreamlitLogo = true  
-hideMenu = true           
-hideFooter = true          
-
