@@ -1,61 +1,56 @@
-import os
+# app.py
+
 import streamlit as st
+from pathlib import Path
+
+# LangChain imports
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
 from langchain.embeddings import OllamaEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.chains import RetrievalQA
 from langchain.llms import Ollama
-from langchain.chains import ConversationalRetrievalChain
 
-# Optional: for PDF loading
-try:
-    from langchain.document_loaders import PyPDFLoader
-except ImportError:
-    st.error("PyPDFLoader not found. Make sure you have langchain>=0.1.159 installed.")
+# PDF processing
+from PyPDF2 import PdfReader
 
-# Streamlit page config
+# ------------------------
+# Streamlit UI
+# ------------------------
 st.set_page_config(page_title="Local Multi-PDF AI Chatbot", layout="wide")
-st.title("🤖 Local Multi-PDF AI Chatbot (Llama 3 + LangChain + Ollama)")
 
-# Initialize chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+st.title("📄 Local PDF AI Chatbot")
 
-# Folders
-DATA_DIR = "data"
-VECTOR_DIR = "vectorstore"
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(VECTOR_DIR, exist_ok=True)
+# Upload PDFs
+uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
-# PDF Upload
-uploaded_files = st.file_uploader("📂 Upload PDF files", type=["pdf"], accept_multiple_files=True)
+if uploaded_files:
+    raw_texts = []
+    for pdf_file in uploaded_files:
+        pdf_reader = PdfReader(pdf_file)
+        for page in pdf_reader.pages:
+            raw_texts.append(page.extract_text())
 
-if st.button("Process Documents"):
-    if uploaded_files:
-        all_texts = []
-        for file in uploaded_files:
-            file_path = os.path.join(DATA_DIR, file.name)
-            with open(file_path, "wb") as f:
-                f.write(file.read())
-            loader = PyPDFLoader(file_path)
-            docs = loader.load()
-            splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-            all_texts.extend(splitter.split_documents(docs))
+    # Split text into chunks
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,  # adjust chunk size as needed
+        chunk_overlap=100
+    )
+    docs = text_splitter.split_text(" ".join(raw_texts))
 
-        embeddings = OllamaEmbeddings(model="llama3")
-        vectorstore = Chroma.from_documents(all_texts, embeddings, persist_directory=VECTOR_DIR)
-        vectorstore.persist()
-        st.success("✅ Documents processed successfully!")
-    else:
-        st.warning("Please upload PDFs first.")
+    # Create vectorstore with Ollama embeddings
+    embeddings = OllamaEmbeddings()
+    vectorstore = Chroma.from_texts(docs, embedding=embeddings, persist_directory="vectorstore")
 
-# Chat Interface
-query = st.text_input("💬 Ask a question about your PDFs:")
-if query:
-    embeddings = OllamaEmbeddings(model="llama3")
-    db = Chroma(persist_directory=VECTOR_DIR, embedding_function=embeddings)
-    retriever = db.as_retriever(search_kwargs={"k": 4})
-    llm = Ollama(model="llama3")
-    chain = ConversationalRetrievalChain.from_llm(llm, retriever)
-    result = chain.invoke({"question": query, "chat_history": st.session_state.chat_history})
-    st.session_state.chat_history.append((query, result["answer"]))
-    st.markdown(f"**AI:** {result['answer']}")
+    st.success("✅ PDF processed and embeddings created!")
+
+    # Query interface
+    query = st.text_input("Ask a question about your PDFs:")
+    if query:
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=Ollama(model="llama2", model_kwargs={"temperature": 0}),
+            chain_type="stuff",
+            retriever=retriever
+        )
+        answer = qa_chain.run(query)
+        st.write("💡 Answer:", answer)
