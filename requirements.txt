@@ -1,7 +1,17 @@
-streamlit==1.27.0
-langchain==0.1.148
-chromadb==0.4.1
-ollama==0.0.9
-pdfplumber==0.10.0
-PyPDF2==3.1.0
-tqdm==4.66.1
+# Streamlit for web app
+streamlit>=1.24.0
+
+# LangChain for document processing and LLM chains
+langchain>=0.1.159
+
+# ChromaDB for vector storage
+chromadb>=0.3.33
+
+# Ollama Python client for Llama 3 embeddings and LLM
+ollama>=0.0.6
+
+# PDF processing
+pypdf>=3.15.0
+
+# Optional: useful utilities
+python-dotenv>=1.0.0
